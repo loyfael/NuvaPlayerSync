@@ -1,0 +1,6 @@
+prefix: "NuvaSynchro"
+loading: "Player data is being synchronized..."
+saving: "Saving player data..."
+reloaded: "Configuration reloaded successfully!"
+no-permission: "Insufficient permission."
+

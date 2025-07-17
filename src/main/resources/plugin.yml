@@ -1,0 +1,48 @@
+name: NuvaPlayerSynchro
+main: loyfael.Main
+version: '${project.version}'
+api-version: '1.21.7'
+author: loyfael
+description: A modern player data synchronization plugin for Minecraft 1.21+
+website: https://github.com/loyfael/NuvaPlayerSynchro
+
+commands:
+  sync:
+    description: Main command for PlayerSync plugin
+    usage: /sync <option> [on/off] | /sync reload | /sync stats
+    permission: playerdatasync.admin
+
+permissions:
+  playerdatasync.admin:
+    description: Administrative permission for PlayerDataSync
+    default: op
+  playerdatasync.admin.coordinates:
+    description: Permission to manage coordinates sync
+    default: op
+  playerdatasync.admin.xp:
+    description: Permission to manage XP sync
+    default: op
+  playerdatasync.admin.gamemode:
+    description: Permission to manage gamemode sync
+    default: op
+  playerdatasync.admin.enderchest:
+    description: Permission to manage enderchest sync
+    default: op
+  playerdatasync.admin.inventory:
+    description: Permission to manage inventory sync
+    default: op
+  playerdatasync.admin.health:
+    description: Permission to manage health sync
+    default: op
+  playerdatasync.admin.hunger:
+    description: Permission to manage hunger sync
+    default: op
+  playerdatasync.admin.position:
+    description: Permission to manage position sync
+    default: op
+  playerdatasync.message.show.loading:
+    description: Permission to see loading messages
+    default: true
+  playerdatasync.message.show.saving:
+    description: Permission to see saving messages
+    default: true

@@ -1,0 +1,4 @@
+prefix: "NuvaSynchro"
+loading: "Les datas sont entrain d'être synchronisées.."
+saving: "Sauvegarde des données joueur.."
+reloaded: "Configuration rechargée avec succès !"

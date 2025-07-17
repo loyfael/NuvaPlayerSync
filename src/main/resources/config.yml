@@ -1,0 +1,115 @@
+# ==================================================
+# NuvaPlayerSynchro - High-Performance Configuration
+# ==================================================
+#
+# This plugin is designed to handle hundreds of concurrent players
+# with optimized database operations and crash protection.
+#
+# QUICK SETUP GUIDE:
+# 1. Configure your database settings below
+# 2. Adjust autosave intervals based on your server load
+# 3. Enable crash protection for production servers
+# 4. Optimize MySQL server-side (see recommendations at bottom)
+#
+# PERFORMANCE PRESETS:
+#
+# === SMALL SERVER (1-50 players) ===
+# autosave.interval: 600 (10 minutes)
+# autosave.high-load-threshold: 50
+# crash-protection.enabled: false (optional)
+# database.mysql.maximum-pool-size: 5-10
+#
+# === MEDIUM SERVER (50-150 players) ===
+# autosave.interval: 300 (5 minutes) - DEFAULT
+# autosave.high-load-threshold: 100
+# crash-protection.enabled: true
+# database.mysql.maximum-pool-size: 15-20
+#
+# === LARGE SERVER (150+ players) ===
+# autosave.interval: 180 (3 minutes)
+# autosave.high-load-interval: 60 (1 minute)
+# autosave.high-load-threshold: 150
+# crash-protection.enabled: true
+# database.mysql.maximum-pool-size: 25-30
+#
+# IMPORTANT NOTES:
+# - Lower autosave intervals = better crash protection but higher DB load
+# - Crash protection is HIGHLY RECOMMENDED for production servers
+# - Monitor your database CPU usage and adjust pool sizes accordingly
+# - The plugin automatically optimizes based on player count
+#
+# ==================================================
+
+# Language configuration
+language: "en" # Available: en, fr
+
+# Recommended MySQL optimizations (configure server-side)
+# innodb_buffer_pool_size = 1G (minimum)
+# innodb_log_file_size = 256M
+# innodb_flush_log_at_trx_commit = 2
+# innodb_flush_method = O_DIRECT
+# max_connections = 500
+database:
+  type: "mysql" # Recommended for high load
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "minecraft"
+    user: "root"
+    password: ""
+
+    # HikariCP optimizations for high load
+    maximum-pool-size: 20      # Max connections (auto-calculated based on CPU)
+    minimum-idle: 5            # Minimum idle connections
+    connection-timeout: 5000   # 5 seconds max to get connection
+    idle-timeout: 300000       # 5 minutes idle
+    max-lifetime: 1800000      # 30 minutes max lifetime
+    leak-detection-threshold: 10000 # 10 seconds leak detection
+
+# Synchronization configuration
+sync:
+  xp: true
+  enderchest: true
+  inventory: true
+  health: true
+  hunger: true
+
+# HIGH LOAD performance with crash protection
+autosave:
+  interval: 300 # 5 minutes default
+  high-load-interval: 60 # 1 minute if 100+ players (crash protection)
+  high-load-threshold: 100 # Threshold to activate high load mode
+
+# Crash protection
+crash-protection:
+  enabled: true
+  lag-threshold: 100 # Trigger emergency save if lag > 100ms
+  emergency-save-cooldown: 30 # Cooldown between emergency saves (seconds)
+  backup-save-enabled: true # Backup save in case of failure
+  max-emergency-retries: 3 # Max number of retry attempts
+
+# HIGH LOAD performance
+performance:
+  # Reduced cooldown for better responsiveness
+  save-cooldown: 1000 # 1 second
+
+  # Cache optimized for high memory
+  cache-size: 1000 # Up to 1000 players in cache
+  cache-cleanup-interval: 300 # Cleanup every 5 minutes
+
+  # High performance threading
+  database-threads: 0 # Auto: cores * 2 (minimum 4)
+  inventory-threads: 0 # Auto: cores (minimum 2)
+
+  # Batch processing to reduce DB load
+  batch-save-size: 50 # Save in batches of 50 players
+  batch-load-enabled: true # Batch loading enabled
+
+  # Advanced inventory compression
+  compress-inventories: true
+  inventory-cache-size: 2000 # Larger cache for high load
+
+  # Monitoring and alerts
+  performance-monitoring: true
+  alert-high-load: 200 # Alert if more than 200 players
+  alert-memory-usage: 85 # Alert if memory > 85%
