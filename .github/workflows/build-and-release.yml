@@ -111,7 +111,7 @@ jobs:
 
     - name: Upload artifact for manual runs
       if: github.event_name == 'workflow_dispatch'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: NuvaPlayerSynchro-${{ steps.version.outputs.VERSION }}
         path: |
