@@ -9,7 +9,7 @@
 NuvaPlayerSynchro is designed to handle hundreds of concurrent players with optimized threading, advanced caching, and comprehensive crash protection. Perfect for large-scale Minecraft networks requiring reliable player data synchronization.
 
 ## ✨ Features
-<!---->
+
 ### 🚀 **High Performance**
 - **Asynchronous operations** with dedicated thread pools
 - **HikariCP connection pooling** for maximum database performance
