@@ -249,11 +249,5 @@ This project is licensed under the **GNU Affero General Public License v3.0 (AGP
 - **Bukkit/Spigot/PaperMC** community for excellent documentation
 - **Contributors** who helped improve this plugin
 
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/loyfael/NuvaPlayerSynchro/issues)
-- **Discord**: [Join our community](https://discord.gg/your-server)
-
----
 
 **Made with ❤️ for the Minecraft community**
