@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/loyfael/NuvaPlayerSynchro)
 [![Minecraft](https://img.shields.io/badge/minecraft-1.21+-green.svg)](https://www.minecraft.net/)
-[![License](https://img.shields.io/badge/license-AGPLv3-red.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPLv3-red.svg)](https://github.com/loyfael/NuvaPlayerSynchro/blob/master/LICENSE.txt)
 
 **High-performance player data synchronization plugin for Minecraft servers**
 
@@ -231,7 +231,7 @@ performance:
 
 ## 📄 License
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)** - see the [LICENSE](https://github.com/loyfael/NuvaPlayerSynchro/blob/master/LICENSE.txt) file for details.
 
 ### What this means:
 - ✅ **Free to use** for personal and non-commercial projects
