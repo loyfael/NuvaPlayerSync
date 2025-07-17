@@ -212,9 +212,9 @@ performance:
 
 ## 📈 Roadmap
 
-- [ ] **SQLite support** for smaller servers
+- [ ] **MongoDB** support
+- [ ] **SQLite** support for smaller servers
 - [ ] **Redis caching** for multi-server networks
-- [ ] **Web dashboard** for monitoring and configuration
 - [ ] **API endpoints** for external integrations
 - [ ] **Backup/restore** functionality
 - [ ] **Data migration tools** from other plugins
