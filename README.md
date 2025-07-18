@@ -170,3 +170,43 @@ net:
 operationProfiling:
   mode: off
 ```
+## 🤝 Contributing
+**Please note**: This plugin was originally developed for my personal Minecraft server needs. While I don't develop features on request or provide custom development services, **community contributions are very welcome!**
+
+### Contribution Guidelines
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### What I Accept
+- ✅ **Bug fixes** and stability improvements
+- ✅ **Performance optimizations**
+- ✅ **Code quality improvements**
+- ✅ **Documentation updates**
+- ✅ **New language translations**
+- ✅ **Security enhancements**
+And please, test your new feature in tests servers.
+
+### What I Don't Provide
+- ❌ **Custom feature development** on request
+- ❌ **Paid development services**
+- ❌ **Priority support** for specific use cases
+- ❌ **Server-specific configurations**
+
+**Note**: This plugin meets my server's requirements. If you need additional features, you're encouraged to fork and modify it according to the AGPLv3 license terms.
+## 📄 License
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)** - see the [LICENSE](https://github.com/loyfael/NuvaPlayerSynchro/blob/master/LICENSE.txt) file for details.
+
+### What this means:
+- ✅ **Free to use** for personal and non-commercial projects
+- ✅ **Modification allowed** with proper attribution to original author
+- ✅ **Distribution allowed** with source code disclosure
+- ❌ **Commercial use prohibited** without explicit permission
+- 📝 **Copyleft** - derivative works must remain open source under AGPLv3
+- 🔗 **Network use** - even SaaS deployments must provide source code
+
+**Important**: Any fork, modification, or usage of this code **must** credit me (loyfael) and remain under AGPLv3 license.
+
+**Made with ❤️ for the Minecraft community**
