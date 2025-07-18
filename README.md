@@ -9,7 +9,7 @@
 NuvaPlayerSynchro is designed to handle **thousands of concurrent players** with MongoDB's NoSQL performance, optimized threading, advanced caching, and comprehensive crash protection. Perfect for massive Minecraft networks requiring blazing-fast player data synchronization.
 
 > [!WARNING]
-> LoyPlayerSync 1.2.0 is designed for high-concurrency environments and is theoretically suitable for large Minecraft networks.
+> NuvaPlayerSynchro is designed for high-concurrency environments and is theoretically suitable for large Minecraft networks.
 > However, this plugin is **not yet ready for production use** and should preferably be used on **test or development servers**.
 > If you choose to use it in a production environment, it is entirely **at your own risk**.
 > It is **strongly recommended** to install an additional inventory backup plugin to ensure player inventory recovery in case of data loss or unexpected issues.
