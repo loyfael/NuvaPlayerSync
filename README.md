@@ -13,7 +13,7 @@ NuvaPlayerSynchro is designed to handle **thousands of concurrent players** with
 ### 🚀 **Ultra-High Performance**
 - **MongoDB NoSQL database** for extreme concurrent operations
 - **Asynchronous operations** with dedicated thread pools (cores × 4)
-- **Advanced connection pooling** (20-100 connections) for maximum throughput
+- **MongoDB native connection pooling** (20-100 connections) for maximum throughput
 - **Intelligent caching system** with LRU eviction (2000+ entries)
 - **Bulk write operations** with compression (zstd/snappy/zlib)
 - **Adaptive autosave intervals** based on server load
