@@ -63,6 +63,9 @@ public class Main extends JavaPlugin {
 
   @Override
   public void onEnable() {
+    // Disable MongoDB verbose logging FIRST
+    disableMongoLogging();
+
     saveDefaultConfig();
 
     // Initialize high-performance thread pools optimized for heavy load
@@ -238,6 +241,7 @@ public class Main extends JavaPlugin {
   @Override
   public void onDisable() {
     getLogger().info("Shutdown in progress - Final save of " + Bukkit.getOnlinePlayers().size() + " players..");
+    getLogger().info("Please don't force stop the server. This may take a few seconds.");
 
     // Cancel autosave task
     if (autosaveTask != null) {
@@ -572,6 +576,22 @@ public class Main extends JavaPlugin {
           // TODO: Could implement file-based emergency backup here
         }
       }
+    }
+  }
+
+  /**
+   * Disable verbose logging for MongoDB driver
+   * Reduces log spam and improves performance
+   */
+  private void disableMongoLogging() {
+    try {
+      // Access the MongoDB driver logger and set level to OFF
+      java.util.logging.Logger mongoLogger = java.util.logging.Logger.getLogger("org.mongodb.driver");
+      mongoLogger.setLevel(java.util.logging.Level.OFF);
+
+      getLogger().info("MongoDB verbose logging disabled.");
+    } catch (Exception e) {
+      getLogger().warning("Failed to disable MongoDB logging: " + e.getMessage());
     }
   }
 }

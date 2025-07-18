@@ -14,6 +14,7 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -51,6 +52,9 @@ public class MongoConnectionManager {
      * Initialize MongoDB with ultra-high-performance settings
      */
     public void initialize() {
+        // Disable verbose MongoDB driver logging
+        disableMongoDriverLogging();
+
         try {
             String connectionString = buildOptimizedConnectionString();
 
@@ -83,12 +87,12 @@ public class MongoConnectionManager {
                 .readPreference(ReadPreference.primaryPreferred())
                 // Faster read concern
                 .readConcern(ReadConcern.LOCAL)
-                // Enable compression for network optimization
-                .compressorList(Arrays.asList(
-                    MongoCompressor.createZstdCompressor(),
-                    MongoCompressor.createSnappyCompressor(),
-                    MongoCompressor.createZlibCompressor()
+                // Enable compression for network optimization (only zlib is included in JDK)
+                .compressorList(List.of(
+                        MongoCompressor.createZlibCompressor()
                 ))
+                // Disable MongoDB driver logging completely
+                .applyToLoggerSettings(builder -> builder.maxDocumentLength(0))
                 .build();
 
             mongoClient = MongoClients.create(settings);
@@ -98,15 +102,33 @@ public class MongoConnectionManager {
             // Test connection with timeout
             database.runCommand(new org.bson.Document("ping", 1));
 
-            plugin.getLogger().info("MongoDB connected with ULTRA-HIGH PERFORMANCE settings:");
-            plugin.getLogger().info("- Pool: " + MIN_POOL_SIZE + "-" + MAX_POOL_SIZE + " connections");
-            plugin.getLogger().info("- Write concern: W1, no journal (speed optimized)");
-            plugin.getLogger().info("- Read preference: Primary preferred");
-            plugin.getLogger().info("- Compression: zstd/snappy/zlib enabled");
+            plugin.getLogger().info("MongoDB connected successfully!");
 
         } catch (Exception e) {
             plugin.getLogger().severe("MongoDB initialization failed: " + e.getMessage());
             throw new RuntimeException("MongoDB ultra-performance setup failed", e);
+        }
+    }
+
+    /**
+     * Disable verbose MongoDB driver logging to reduce log spam
+     */
+    private void disableMongoDriverLogging() {
+        try {
+            // Set MongoDB driver loggers to WARNING level to reduce verbosity
+            java.util.logging.Logger mongoLogger = java.util.logging.Logger.getLogger("org.mongodb.driver");
+            mongoLogger.setLevel(java.util.logging.Level.WARNING);
+
+            java.util.logging.Logger mongoClientLogger = java.util.logging.Logger.getLogger("org.mongodb.driver.client");
+            mongoClientLogger.setLevel(java.util.logging.Level.WARNING);
+
+            java.util.logging.Logger mongoClusterLogger = java.util.logging.Logger.getLogger("org.mongodb.driver.cluster");
+            mongoClusterLogger.setLevel(java.util.logging.Level.WARNING);
+
+            java.util.logging.Logger mongoConnectionLogger = java.util.logging.Logger.getLogger("org.mongodb.driver.connection");
+            mongoConnectionLogger.setLevel(java.util.logging.Level.WARNING);
+        } catch (Exception e) {
+            // Ignore logging configuration errors
         }
     }
 
@@ -119,11 +141,15 @@ public class MongoConnectionManager {
         String username = plugin.getConfig().getString("database.mongodb.username", "");
         String password = plugin.getConfig().getString("database.mongodb.password", "");
         String database = plugin.getConfig().getString("database.mongodb.database", "minecraft");
+        String authSource = plugin.getConfig().getString("database.mongodb.auth-source", "admin");
 
         StringBuilder connectionString = new StringBuilder("mongodb://");
 
         if (!username.isEmpty() && !password.isEmpty()) {
-            connectionString.append(username).append(":").append(password).append("@");
+            // URL-encode username and password to handle special characters
+            String encodedUsername = urlEncode(username);
+            String encodedPassword = urlEncode(password);
+            connectionString.append(encodedUsername).append(":").append(encodedPassword).append("@");
         }
 
         connectionString.append(host).append(":").append(port).append("/").append(database);
@@ -142,9 +168,29 @@ public class MongoConnectionManager {
                        .append("&connectTimeoutMS=5000")            // 5s connect timeout
                        .append("&socketTimeoutMS=20000")            // 20s socket timeout
                        .append("&heartbeatFrequencyMS=5000")        // 5s heartbeat
-                       .append("&compressors=zstd,snappy,zlib");    // Enable compression
+                       .append("&compressors=zlib");                 // Enable compression
+
+        // Add authentication source if username/password are provided
+        if (!username.isEmpty() && !password.isEmpty()) {
+            connectionString.append("&authSource=").append(authSource);
+        }
 
         return connectionString.toString();
+    }
+
+    /**
+     * URL-encode a string to handle special characters in MongoDB connection strings
+     * @param value The string to encode
+     * @return URL-encoded string
+     */
+    private String urlEncode(String value) {
+        try {
+            return java.net.URLEncoder.encode(value, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            // UTF-8 is always supported, this should never happen
+            plugin.getLogger().warning("UTF-8 encoding not supported, using original value: " + e.getMessage());
+            return value;
+        }
     }
 
     /**

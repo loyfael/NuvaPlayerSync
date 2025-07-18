@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="[%d{HH:mm:ss} %level]: %msg%n"/>
+        </Console>
+        <File name="File" fileName="logs/latest.log" append="false">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg%n"/>
+        </File>
+    </Appenders>
+    <Loggers>
+        <!-- DISABLE COMPLETLY -->
+        <Logger name="org.mongodb.driver" level="OFF" additivity="false"/>
+        <Logger name="org.mongodb.driver.client" level="OFF" additivity="false"/>
+        <Logger name="org.mongodb.driver.cluster" level="OFF" additivity="false"/>
+        <Logger name="org.mongodb.driver.connection" level="OFF" additivity="false"/>
+        <Logger name="org.mongodb.driver.protocol" level="OFF" additivity="false"/>
+        <Logger name="org.mongodb.driver.authenticator" level="OFF" additivity="false"/>
+
+        <Logger name="org.bukkit" level="INFO"/>
+        <Logger name="net.minecraft.server" level="INFO"/>
+        <Logger name="loyfael" level="INFO"/>
+
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+        </Root>
+    </Loggers>
+</Configuration>
+

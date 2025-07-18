@@ -50,6 +50,7 @@ database:
     database: "minecraft"
     username: ""  # Leave empty for no auth
     password: ""  # Leave empty for no auth
+    auth-source: "admin" # Use 'admin' for MongoDB auth source
 
     # ULTRA-HIGH PERFORMANCE MongoDB optimizations
     connection-pool:
