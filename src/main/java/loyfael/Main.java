@@ -229,7 +229,8 @@ public class Main extends JavaPlugin {
         }
 
         if (!playersToSave.isEmpty()) {
-          getLogger().info("Automatic save: " + playersToSave.size() + " players (interval: " + effectiveInterval + "s)");
+          // Log supprimé pour éviter l'encombrement des logs
+          // getLogger().info("Automatic save: " + playersToSave.size() + " players (interval: " + effectiveInterval + "s)");
         }
       }, 20L * autosaveInterval, 20L * Math.min(autosaveInterval, highLoadInterval));
     }
@@ -248,26 +249,31 @@ public class Main extends JavaPlugin {
       autosaveTask.cancel();
     }
 
-    // Final mass save with timeout protection
-    if (databaseExecutor != null && !databaseExecutor.isShutdown()) {
-      var players = Bukkit.getOnlinePlayers();
-      for (Player player : players) {
-        databaseExecutor.execute(() -> databaseManager.savePlayer(player));
+    // Final mass save - use synchronous saves during shutdown for reliability
+    var players = Bukkit.getOnlinePlayers();
+    for (Player player : players) {
+      try {
+        databaseManager.savePlayer(player);
+      } catch (Exception e) {
+        getLogger().warning("Failed to save player " + player.getName() + " during shutdown: " + e.getMessage());
       }
+    }
 
-      shutdownExecutorGracefully(databaseExecutor, "Database", 15);
+    // Shutdown thread pools gracefully (just stop accepting new tasks)
+    if (databaseExecutor != null && !databaseExecutor.isShutdown()) {
+      databaseExecutor.shutdown();
     }
 
     if (inventoryExecutor != null && !inventoryExecutor.isShutdown()) {
-      shutdownExecutorGracefully(inventoryExecutor, "Inventory", 10);
+      inventoryExecutor.shutdown();
     }
 
-    // Close database manager gracefully
+    // Close database connections gracefully (this is what we want to do properly)
     if (databaseManager != null) {
       databaseManager.shutdown();
     }
 
-    // Close connection manager
+    // Close MongoDB connection manager gracefully
     if (mongoManager != null) {
       mongoManager.shutdown();
     }
@@ -276,7 +282,7 @@ public class Main extends JavaPlugin {
   }
 
   /**
-   * Gracefully shutdown executor with timeout protection
+   * Gracefully shutdown executor with improved timeout handling
    * @param executor The executor service to shut down
    * @param name Name for logging purposes
    * @param timeoutSeconds Maximum time to wait for shutdown
@@ -284,12 +290,25 @@ public class Main extends JavaPlugin {
   private void shutdownExecutorGracefully(ExecutorService executor, String name, int timeoutSeconds) {
     executor.shutdown();
     try {
-      if (!executor.awaitTermination(timeoutSeconds, TimeUnit.SECONDS)) {
-        getLogger().warning(name + " executor timeout - Force shutdown");
+      // First wait for normal termination
+      if (executor.awaitTermination(timeoutSeconds, TimeUnit.SECONDS)) {
+        getLogger().info(name + " executor shut down gracefully");
+      } else {
+        // Only force shutdown if really necessary
+        getLogger().info(name + " executor taking longer than expected, forcing shutdown...");
         executor.shutdownNow();
+
+        // Give a bit more time for forced shutdown
+        if (executor.awaitTermination(5, TimeUnit.SECONDS)) {
+          getLogger().info(name + " executor forced shutdown completed");
+        } else {
+          getLogger().warning(name + " executor failed to terminate completely");
+        }
       }
     } catch (InterruptedException e) {
+      getLogger().warning(name + " executor shutdown interrupted");
       executor.shutdownNow();
+      Thread.currentThread().interrupt();
     }
   }
 
