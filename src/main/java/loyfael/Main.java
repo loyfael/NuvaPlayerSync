@@ -5,11 +5,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -18,20 +15,20 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * NuvaPlayerSynchro - High-performance player data synchronization plugin
  * Designed to handle hundreds of concurrent players with optimized threading and caching
- *
+ * This plugin provides a robust solution for synchronizing player data across server restarts and crashes
  * Features:
  * - Asynchronous database operations with dedicated thread pools
- * - HikariCP connection pooling for maximum database performance
+ * - MongoDB connection management for massive query operations
  * - Advanced caching system with configurable cleanup
  * - Batch processing for reduced database load
  * - Separate thread pools for database and inventory operations
  * - Crash protection with JVM shutdown hooks and lag detection
- *
+ * - Emergency save mechanism with multiple retries and backup options
  * Synchronizes: XP, Enderchest, Inventory, Health, Hunger
  */
 public class Main extends JavaPlugin {
-  // High-performance connection pooling using HikariCP
-  private HighPerformanceConnectionPool connectionPool;
+  // High-performance MongoDB connection manager
+  private MongoConnectionManager mongoManager;
 
   // Optimized threading for high load scenarios
   private ExecutorService databaseExecutor;    // Dedicated pool for database operations
@@ -42,7 +39,6 @@ public class Main extends JavaPlugin {
   private final long SAVE_COOLDOWN = 1000; // Reduced to 1 second for better responsiveness
 
   // Configuration fields for sync options
-  private String databaseType;
   private boolean syncXp;
   private boolean syncEnderchest;
   private boolean syncInventory;
@@ -78,11 +74,9 @@ public class Main extends JavaPlugin {
     String lang = getConfig().getString("language", "en");
     messageManager.load(lang);
 
-    databaseType = getConfig().getString("database.type", "mysql");
-
-    // Initialize HikariCP connection pool for maximum database performance
-    connectionPool = new HighPerformanceConnectionPool(this);
-    connectionPool.initialize();
+    // Initialize MongoDB connection manager
+    mongoManager = new MongoConnectionManager(this);
+    mongoManager.initialize();
 
     // Load sync configuration options
     loadConfiguration();
@@ -111,7 +105,7 @@ public class Main extends JavaPlugin {
     getLogger().info("Plugin activated in HIGH PERFORMANCE mode:");
     getLogger().info("- " + dbThreads + " database threads");
     getLogger().info("- " + invThreads + " inventory threads");
-    getLogger().info("- HikariCP Pool: " + connectionPool.getTotalConnections() + " connections");
+    getLogger().info("- MongoDB Connections: " + mongoManager.getTotalConnections() + " connections");
 
     // === CRASH PROTECTION INITIALIZATION ===
     startLagDetectionTask();
@@ -119,41 +113,47 @@ public class Main extends JavaPlugin {
   }
 
   /**
-   * Initialize high-performance thread pools optimized for handling hundreds of players
-   * Uses separate pools for database and inventory operations to prevent blocking
+   * Initialize ultra-high-performance thread pools optimized for massive concurrent operations
+   * Uses aggressive settings and CPU-specific optimizations
    */
   private void initializeHighPerformanceThreadPools() {
     int cores = Runtime.getRuntime().availableProcessors();
 
-    // Main DB pool: cores * 2 to handle high load efficiently
-    int dbThreads = Math.max(4, cores * 2);
+    // Ultra-aggressive DB pool: cores * 4 for extreme concurrent load
+    int dbThreads = Math.max(8, cores * 4);  // Minimum 8 threads, scale with CPU
     databaseExecutor = new ThreadPoolExecutor(
-        dbThreads / 2,          // Core threads (half of max)
-        dbThreads,              // Maximum threads
-        60L, TimeUnit.SECONDS,  // Keep alive time
-        new LinkedBlockingQueue<>(1000), // Queue with limit to prevent memory issues
+        dbThreads,                           // Core threads = max threads for instant availability
+        dbThreads,                           // Maximum threads
+        30L, TimeUnit.SECONDS,               // Shorter keep alive for resource efficiency
+        new LinkedBlockingQueue<>(2000),     // Larger queue for burst handling
         r -> {
-            Thread t = new Thread(r, "PlayerSync-DB-" + System.currentTimeMillis());
+            Thread t = new Thread(r, "NuvaSync-UltraDB-" + System.nanoTime());
             t.setDaemon(true);
-            t.setPriority(Thread.NORM_PRIORITY + 1); // Slightly higher priority for DB ops
+            t.setPriority(Thread.MAX_PRIORITY - 1);  // High priority for DB ops
             return t;
-        }
+        },
+        new ThreadPoolExecutor.CallerRunsPolicy()  // Backpressure handling
     );
 
-    // Separate pool for inventory operations (heavy serialization/deserialization)
-    int invThreads = Math.max(2, cores);
+    // Optimized inventory pool with burst capacity
+    int invThreads = Math.max(4, cores * 2);
     inventoryExecutor = new ThreadPoolExecutor(
-        invThreads / 2,
-        invThreads,
-        60L, TimeUnit.SECONDS,
-        new LinkedBlockingQueue<>(500),
+        invThreads / 2,                      // Core threads
+        invThreads * 2,                      // Burst capacity for heavy inventory ops
+        45L, TimeUnit.SECONDS,               // Keep alive
+        new LinkedBlockingQueue<>(1000),     // Large queue for inventory serialization
         r -> {
-            Thread t = new Thread(r, "PlayerSync-Inventory-" + System.currentTimeMillis());
+            Thread t = new Thread(r, "NuvaSync-UltraInv-" + System.nanoTime());
             t.setDaemon(true);
-            t.setPriority(Thread.NORM_PRIORITY);
+            t.setPriority(Thread.NORM_PRIORITY + 1);  // Above normal priority
             return t;
-        }
+        },
+        new ThreadPoolExecutor.CallerRunsPolicy()
     );
+
+    // Pre-warm thread pools for instant response
+    ((ThreadPoolExecutor) databaseExecutor).prestartAllCoreThreads();
+    ((ThreadPoolExecutor) inventoryExecutor).prestartCoreThread();
   }
 
   /**
@@ -245,9 +245,9 @@ public class Main extends JavaPlugin {
       shutdownExecutorGracefully(inventoryExecutor, "Inventory", 10);
     }
 
-    // Close connection pool
-    if (connectionPool != null) {
-      connectionPool.shutdown();
+    // Close connection manager
+    if (mongoManager != null) {
+      mongoManager.shutdown();
     }
 
     getLogger().info("Shutdown completed - All data saved");
@@ -272,15 +272,6 @@ public class Main extends JavaPlugin {
   }
 
   // === PUBLIC API METHODS ===
-
-  /**
-   * Get database connection from the high-performance pool
-   * @return Database connection
-   * @throws SQLException If connection cannot be obtained
-   */
-  public Connection getConnection() throws SQLException {
-    return connectionPool.getConnection();
-  }
 
   /**
    * Get the database executor for async operations
@@ -309,14 +300,11 @@ public class Main extends JavaPlugin {
   }
 
   /**
-   * Get connection pool statistics for monitoring
-   * @return Formatted string with pool statistics
+   * Get MongoDB connection statistics for monitoring
+   * @return Formatted string with connection statistics
    */
   public String getConnectionPoolStats() {
-    return String.format("Connections: %d active, %d idle, %d total",
-        connectionPool.getActiveConnections(),
-        connectionPool.getIdleConnections(),
-        connectionPool.getTotalConnections());
+    return mongoManager != null ? mongoManager.getConnectionPoolStats() : "MongoDB not initialized";
   }
 
   // === GETTERS FOR SYNC OPTIONS ===
