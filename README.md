@@ -1,4 +1,4 @@
-# NuvaPlayerSynchro
+# LoyPlayerSynchro
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/loyfael/NuvaPlayerSynchro)
 [![Minecraft](https://img.shields.io/badge/minecraft-1.21+-green.svg)](https://www.minecraft.net/)
