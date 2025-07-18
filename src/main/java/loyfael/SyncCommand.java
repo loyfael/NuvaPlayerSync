@@ -15,8 +15,8 @@ public class SyncCommand implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (!hasPerm(sender, "admin")) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
+        if (!hasPerm(sender)) {
             sender.sendMessage(plugin.getMessageManager().get("no-permission"));
             return true;
         }
@@ -123,14 +123,24 @@ public class SyncCommand implements CommandExecutor {
         sender.sendMessage("§6--- Pool de Connexions ---");
         sender.sendMessage("§e" + plugin.getConnectionPoolStats());
 
-        // Statistiques du cache et de la base de données
-        sender.sendMessage("§6--- Performance Base de Données ---");
+        // Statistiques MongoDB et base de données
+        sender.sendMessage("§6--- MongoDB & Database ---");
         sender.sendMessage("§e" + plugin.getDatabaseManager().getPerformanceStats());
-        sender.sendMessage("§eCache joueurs: §f" + plugin.getDatabaseManager().getCacheSize() + " entrées");
-        sender.sendMessage("§eCache inventaires: §f" + InventoryUtils.getCacheSize() + " entrées");
+        sender.sendMessage("§e" + plugin.getDatabaseManager().getConnectionPoolStats());
+        sender.sendMessage("§eCache size: §f" + plugin.getDatabaseManager().getCacheSize() + " entries");
 
-        // Calcul des TPS (approximatif)
-        long currentTime = System.currentTimeMillis();
+        // Statistiques détaillées MongoDB
+        if (plugin.getConfig().getBoolean("debug.show-detailed-stats", false)) {
+            var mongoManager = getMongoManagerFromPlugin();
+            if (mongoManager != null) {
+                sender.sendMessage("§6--- MongoDB Detailed Stats ---");
+                sender.sendMessage("§e" + mongoManager.getPerformanceStats());
+                sender.sendMessage("§eActive connections: §f" + mongoManager.getActiveConnections());
+                sender.sendMessage("§eIdle connections: §f" + mongoManager.getIdleConnections());
+            }
+        }
+
+        // Recommandations basées sur le nombre de joueurs
         sender.sendMessage("§6--- Recommandations ---");
         int playerCount = plugin.getServer().getOnlinePlayers().size();
         if (playerCount > 200) {
@@ -142,18 +152,30 @@ public class SyncCommand implements CommandExecutor {
         }
     }
 
-    private boolean hasPerm(CommandSender sender, String option) {
-        return sender.hasPermission("playerdatasync.admin." + option);
+    /**
+     * Get MongoDB manager from plugin for detailed statistics
+     */
+    private MongoConnectionManager getMongoManagerFromPlugin() {
+        try {
+            // Accès via réflection ou méthode publique si disponible
+            return plugin.getMongoManager();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean hasPerm(CommandSender sender) {
+        return sender.hasPermission("playerdatasync.admin");
     }
 
     private boolean getCurrentValue(String option) {
-        switch (option) {
-            case "xp": return plugin.isSyncXp();
-            case "enderchest": return plugin.isSyncEnderchest();
-            case "inventory": return plugin.isSyncInventory();
-            case "health": return plugin.isSyncHealth();
-            case "hunger": return plugin.isSyncHunger();
-            default: return false;
-        }
+        return switch (option) {
+            case "xp" -> plugin.isSyncXp();
+            case "enderchest" -> plugin.isSyncEnderchest();
+            case "inventory" -> plugin.isSyncInventory();
+            case "health" -> plugin.isSyncHealth();
+            case "hunger" -> plugin.isSyncHunger();
+            default -> false;
+        };
     }
 }

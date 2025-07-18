@@ -22,7 +22,6 @@ import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 /**
  * Ultra-high-performance MongoDB connection manager optimized for massive concurrent operations
- *
  * Performance Features:
  * - Aggressive connection pooling (10-100 connections)
  * - Write concern optimization for speed vs safety balance

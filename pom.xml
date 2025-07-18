@@ -28,30 +28,13 @@
             <version>1.21.7-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
-        <!-- MongoDB Driver for high-performance operations -->
+        <!-- MongoDB Driver - Seule dépendance nécessaire (inclut core et bson) -->
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
             <version>4.11.1</version>
         </dependency>
-        <!-- Connection pooling for MongoDB -->
-        <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongodb-driver-core</artifactId>
-            <version>4.11.1</version>
-        </dependency>
-        <!-- BSON for efficient data serialization -->
-        <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>bson</artifactId>
-            <version>4.11.1</version>
-        </dependency>
-        <!-- Async MongoDB driver for non-blocking operations -->
-        <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongodb-driver-reactivestreams</artifactId>
-            <version>4.11.1</version>
-        </dependency>
+        <!-- SLF4J pour le logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
@@ -90,9 +73,15 @@
                                 <exclude>META-INF/versions/**</exclude>
                                 <exclude>module-info.class</exclude>
                                 <exclude>META-INF/versions/*/module-info.class</exclude>
+                                <exclude>META-INF/native-image/org.mongodb/bson/native-image.properties</exclude>
                             </excludes>
                         </filter>
-                        <!-- Éliminer les conflits SLF4J spécifiques -->
+                        <filter>
+                            <artifact>org.mongodb:bson</artifact>
+                            <includes>
+                                <include>META-INF/native-image/org.mongodb/bson/native-image.properties</include>
+                            </includes>
+                        </filter>
                         <filter>
                             <artifact>org.slf4j:slf4j-simple</artifact>
                             <excludes>

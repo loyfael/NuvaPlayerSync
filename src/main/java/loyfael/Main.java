@@ -52,7 +52,6 @@ public class Main extends JavaPlugin {
   private MessageManager messageManager;
 
   // === CRASH PROTECTION COMPONENTS ===
-  private volatile boolean isShuttingDown = false;
   private BukkitTask lagDetectionTask;
   private final AtomicLong lastTickTime = new AtomicLong(System.currentTimeMillis());
   private volatile boolean emergencySaveInProgress = false;
@@ -200,16 +199,30 @@ public class Main extends JavaPlugin {
             })
             .toList();
 
-        // Process in batches of 50 players maximum in parallel
-        int batchSize = 50;
-        for (int i = 0; i < playersToSave.size(); i += batchSize) {
-            var batch = playersToSave.subList(i, Math.min(i + batchSize, playersToSave.size()));
-            databaseExecutor.execute(() -> {
-                for (Player player : batch) {
-                    savePlayerWithBackup(player); // Use backup-enabled save
-                    lastSaveTime.put(player.getUniqueId().toString(), currentTime);
-                }
-            });
+        // Use bulk save for better performance with large player counts
+        if (playersToSave.size() >= 20) {
+            // Use bulk save for large batches - convert to ArrayList for proper type
+            databaseManager.savePlayersBulk(new java.util.ArrayList<>(playersToSave));
+            for (Player player : playersToSave) {
+                lastSaveTime.put(player.getUniqueId().toString(), currentTime);
+            }
+        } else {
+            // Process smaller batches individually for faster response
+            int batchSize = 10;
+            for (int i = 0; i < playersToSave.size(); i += batchSize) {
+                var batch = playersToSave.subList(i, Math.min(i + batchSize, playersToSave.size()));
+                databaseExecutor.execute(() -> {
+                    for (Player player : batch) {
+                        savePlayerWithBackup(player);
+                        lastSaveTime.put(player.getUniqueId().toString(), currentTime);
+                    }
+                });
+            }
+        }
+
+        // Periodic cache cleanup every 5 autosave cycles
+        if (System.currentTimeMillis() % (5L * autosaveInterval * 1000) < 1000) {
+            databaseManager.cleanupExpiredCache();
         }
 
         if (!playersToSave.isEmpty()) {
@@ -245,6 +258,11 @@ public class Main extends JavaPlugin {
       shutdownExecutorGracefully(inventoryExecutor, "Inventory", 10);
     }
 
+    // Close database manager gracefully
+    if (databaseManager != null) {
+      databaseManager.shutdown();
+    }
+
     // Close connection manager
     if (mongoManager != null) {
       mongoManager.shutdown();
@@ -255,7 +273,7 @@ public class Main extends JavaPlugin {
 
   /**
    * Gracefully shutdown executor with timeout protection
-   * @param executor The executor service to shutdown
+   * @param executor The executor service to shut down
    * @param name Name for logging purposes
    * @param timeoutSeconds Maximum time to wait for shutdown
    */
@@ -305,6 +323,14 @@ public class Main extends JavaPlugin {
    */
   public String getConnectionPoolStats() {
     return mongoManager != null ? mongoManager.getConnectionPoolStats() : "MongoDB not initialized";
+  }
+
+  /**
+   * Get MongoDB connection manager for advanced operations
+   * @return MongoConnectionManager instance
+   */
+  public MongoConnectionManager getMongoManager() {
+    return mongoManager;
   }
 
   // === GETTERS FOR SYNC OPTIONS ===
@@ -438,7 +464,6 @@ public class Main extends JavaPlugin {
     }
 
     Thread shutdownHook = new Thread(() -> {
-      isShuttingDown = true;
       System.out.println("[NuvaPlayerSynchro] CRITICAL: JVM shutdown detected - Emergency data protection activated!");
 
       // Cancel all tasks to prevent conflicts
@@ -535,7 +560,7 @@ public class Main extends JavaPlugin {
     // Backup attempts with retries
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        Thread.sleep(100 * attempt); // Progressive delay
+        Thread.sleep(100L * attempt); // Progressive delay
         databaseManager.savePlayer(player);
         getLogger().info("Backup save succeeded for " + player.getName() + " (attempt " + attempt + ")");
         return; // Success

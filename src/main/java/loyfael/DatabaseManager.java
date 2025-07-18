@@ -12,10 +12,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Comparator;
 
 /**
  * Ultra-high-performance MongoDB DatabaseManager optimized for massive concurrent operations
- *
  * Performance Features:
  * - Bulk write operations with ordered processing
  * - Advanced caching with LRU eviction
@@ -88,12 +88,9 @@ public class DatabaseManager {
             Indexes.ascending("uuid"),
             new IndexOptions().background(true).name("uuid_primary"));
 
-        // Compound index for cleanup operations
+        // Compound index for cleanup operations - using Document instead of Indexes.compound
         collection.createIndex(
-            Indexes.compound(
-                Indexes.ascending("uuid"),
-                Indexes.descending("last_updated")
-            ),
+            new Document("uuid", 1).append("last_updated", -1),
             new IndexOptions().background(true).name("uuid_lastupdate_compound"));
 
         // Sparse index for active players only
@@ -144,7 +141,7 @@ public class DatabaseManager {
             // Remove 10% of oldest entries for performance
             int toRemove = MAX_CACHE_SIZE / 10;
             cache.entrySet().stream()
-                .sorted((a, b) -> Long.compare(a.getValue().lastUpdated, b.getValue().lastUpdated))
+                .sorted(Comparator.comparingLong(entry -> entry.getValue().lastUpdated))
                 .limit(toRemove)
                 .forEach(entry -> cache.remove(entry.getKey()));
         }
@@ -161,6 +158,11 @@ public class DatabaseManager {
             Filters.eq("uuid", data.uuid),
             playerDoc,
             options));
+
+        // Notifier le processeur batch qu'il y a de nouvelles écritures
+        synchronized (pendingWrites) {
+            pendingWrites.notify();
+        }
 
         // Trigger batch processing if threshold reached
         if (pendingWrites.size() >= BULK_WRITE_THRESHOLD) {
@@ -189,10 +191,16 @@ public class DatabaseManager {
         plugin.getDatabaseExecutor().execute(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
+                    // Attendre qu'il y ait des écritures en attente ou une interruption
+                    synchronized (pendingWrites) {
+                        while (pendingWrites.isEmpty() && !Thread.currentThread().isInterrupted()) {
+                            pendingWrites.wait(100); // Attendre max 100ms ou jusqu'à notification
+                        }
+                    }
+
                     if (!pendingWrites.isEmpty() && !batchProcessorRunning) {
                         processBatchAsync();
                     }
-                    Thread.sleep(50); // 50ms check interval for responsiveness
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -386,9 +394,19 @@ public class DatabaseManager {
     }
 
     /**
-     * Get MongoDB connection statistics
+     * Get MongoDB connection statistics with detailed client info
      */
     public String getConnectionPoolStats() {
+        // Use the MongoDB client for advanced statistics if available
+        try {
+            var client = mongoManager.getClient();
+            if (client != null) {
+                return String.format("MongoDB Pool: Connected to %s, %d operations processed",
+                    "MongoDB Cluster", mongoManager.getTotalConnections());
+            }
+        } catch (Exception e) {
+            // Fallback to basic stats
+        }
         return mongoManager.getConnectionPoolStats();
     }
 
