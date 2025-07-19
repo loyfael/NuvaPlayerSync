@@ -155,6 +155,10 @@ database:
 
 ## 🎯 Performance Optimizations
 
+### Why MongoDB over MySQL/MariaDB/PostgreSQL?
+
+MongoDB was specifically chosen for this plugin because player data in Minecraft is naturally hierarchical and document-based (inventories, enderchests, complex nested structures). Unlike MySQL which requires complex table relationships and JOIN operations that become bottlenecks under high concurrency, MongoDB stores player data as single documents, enabling atomic operations and eliminating the need for expensive relational queries. The NoSQL architecture provides superior horizontal scalability, native JSON handling for inventory serialization, and built-in sharding capabilities that make it ideal for massive Minecraft networks with thousands of concurrent players. Additionally, MongoDB's connection pooling and bulk write operations offer significantly better performance for the frequent read/write patterns typical in player data synchronization.
+
 ### MongoDB Server Configuration
 Add to your `mongod.conf`:
 
