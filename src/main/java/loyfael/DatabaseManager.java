@@ -424,4 +424,51 @@ public class DatabaseManager {
     public void shutdown() {
         mongoManager.shutdown();
     }
+
+    /**
+     * Reset/delete player data from database
+     * Used for troubleshooting problematic player data
+     */
+    public CompletableFuture<Boolean> resetPlayerData(String uuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                MongoDatabase database = mongoManager.getDatabase();
+                MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+                // Remove from cache first
+                cache.remove(uuid);
+
+                // Delete from database
+                var result = collection.deleteOne(Filters.eq("uuid", uuid));
+
+                totalOperations.incrementAndGet();
+
+                plugin.getLogger().info("Player data reset for UUID: " + uuid +
+                    " (deleted: " + result.getDeletedCount() + " documents)");
+
+                return result.getDeletedCount() > 0;
+            } catch (Exception e) {
+                plugin.getLogger().severe("Failed to reset player data for UUID " + uuid + ": " + e.getMessage());
+                return false;
+            }
+        }, plugin.getDatabaseExecutor());
+    }
+
+    /**
+     * Check if player data exists in database
+     */
+    public CompletableFuture<Boolean> playerDataExists(String uuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                MongoDatabase database = mongoManager.getDatabase();
+                MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+                long count = collection.countDocuments(Filters.eq("uuid", uuid));
+                return count > 0;
+            } catch (Exception e) {
+                plugin.getLogger().severe("Failed to check player data existence for UUID " + uuid + ": " + e.getMessage());
+                return false;
+            }
+        }, plugin.getDatabaseExecutor());
+    }
 }

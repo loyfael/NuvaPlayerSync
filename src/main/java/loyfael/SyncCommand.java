@@ -27,6 +27,7 @@ public class SyncCommand implements CommandExecutor {
             sender.sendMessage("§e/sync reload §7- Reload configuration");
             sender.sendMessage("§e/sync stats §7- Show performance statistics");
             sender.sendMessage("§e/sync cache §7- Cache management");
+            sender.sendMessage("§e/sync reset <player> §7- Reset player data (troubleshooting)");
             return true;
         }
 
@@ -62,6 +63,12 @@ public class SyncCommand implements CommandExecutor {
         }
 
         if (args.length == 2) {
+            // Handle reset command
+            if (option.equals("reset")) {
+                handleResetCommand(sender, args[1]);
+                return true;
+            }
+
             String value = args[1].toLowerCase();
             if (!value.equals("on") && !value.equals("off")) {
                 sender.sendMessage("§cUse 'on' or 'off'");
@@ -177,5 +184,92 @@ public class SyncCommand implements CommandExecutor {
             case "hunger" -> plugin.isSyncHunger();
             default -> false;
         };
+    }
+
+    private void handleResetCommand(CommandSender sender, String playerName) {
+        sender.sendMessage("§eRecherche du joueur §f" + playerName + "§e...");
+
+        // Try to get player UUID from online players first
+        var onlinePlayer = plugin.getServer().getPlayer(playerName);
+        String uuid = null;
+        String finalPlayerName = playerName;
+
+        if (onlinePlayer != null) {
+            // Player is online
+            uuid = onlinePlayer.getUniqueId().toString();
+            finalPlayerName = onlinePlayer.getName();
+            sender.sendMessage("§aJoueur trouvé en ligne: §f" + finalPlayerName);
+        } else {
+            // Check if it's already a UUID format
+            if (playerName.length() == 36 && playerName.contains("-")) {
+                // It's already a UUID
+                uuid = playerName;
+                finalPlayerName = "UUID: " + playerName;
+                sender.sendMessage("§eUUID fourni directement: §f" + playerName);
+            } else {
+                // Try to get UUID from offline player
+                try {
+                    var offlinePlayer = plugin.getServer().getOfflinePlayer(playerName);
+                    if (offlinePlayer.hasPlayedBefore()) {
+                        uuid = offlinePlayer.getUniqueId().toString();
+                        finalPlayerName = offlinePlayer.getName() != null ? offlinePlayer.getName() : playerName;
+                        sender.sendMessage("§eJoueur hors ligne trouvé: §f" + finalPlayerName);
+                    } else {
+                        sender.sendMessage("§cJoueur §f" + playerName + " §cn'a jamais joué sur ce serveur.");
+                        sender.sendMessage("§eVous pouvez aussi utiliser l'UUID directement: §f/sync reset <UUID>");
+                        return;
+                    }
+                } catch (Exception e) {
+                    sender.sendMessage("§cErreur lors de la recherche du joueur §f" + playerName);
+                    sender.sendMessage("§eUtilisez l'UUID du joueur: §f/sync reset <UUID>");
+                    return;
+                }
+            }
+        }
+
+        final String finalUuid = uuid;
+        final String displayName = finalPlayerName;
+
+        sender.sendMessage("§eVérification de l'existence des données pour §f" + displayName + "§e...");
+
+        // Check if player data exists first
+        plugin.getDatabaseManager().playerDataExists(finalUuid).thenAccept(exists -> {
+            if (!exists) {
+                sender.sendMessage("§cAucune donnée trouvée pour le joueur §f" + displayName);
+                return;
+            }
+
+            sender.sendMessage("§eRéinitialisation des données du joueur §f" + displayName + "§e...");
+
+            // Reset player data
+            plugin.getDatabaseManager().resetPlayerData(finalUuid).thenAccept(success -> {
+                if (success) {
+                    sender.sendMessage("§a✓ Données du joueur §f" + displayName + " §aréinitialisées avec succès !");
+
+                    // Clear cache for this player
+                    plugin.getDatabaseManager().clearCache(finalUuid);
+
+                    // If player is online, notify them
+                    if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                        onlinePlayer.sendMessage("§c⚠ Vos données ont été réinitialisées par un administrateur.");
+                        onlinePlayer.sendMessage("§eDéconnectez-vous et reconnectez-vous pour appliquer les changements.");
+                    }
+
+                    // Log the action
+                    plugin.getLogger().info("Player data reset by " + sender.getName() + " for: " + displayName + " (UUID: " + finalUuid + ")");
+                } else {
+                    sender.sendMessage("§c✗ Échec de la réinitialisation des données pour §f" + displayName);
+                    sender.sendMessage("§cVérifiez les logs du serveur pour plus de détails.");
+                }
+            }).exceptionally(throwable -> {
+                sender.sendMessage("§c✗ Erreur lors de la réinitialisation: " + throwable.getMessage());
+                plugin.getLogger().severe("Reset command error: " + throwable.getMessage());
+                return null;
+            });
+        }).exceptionally(throwable -> {
+            sender.sendMessage("§c✗ Erreur lors de la vérification des données: " + throwable.getMessage());
+            plugin.getLogger().severe("Reset command check error: " + throwable.getMessage());
+            return null;
+        });
     }
 }
