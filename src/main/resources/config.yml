@@ -42,6 +42,20 @@
 # Language configuration
 language: "en" # Available: en, fr
 
+# === SYSTÈME DE CHANGEMENTS RAPIDES D'INVENTAIRE ===
+rapid-changes:
+  # Détection des changements rapides (garde pour les statistiques)
+  detection-window: 3000  # Fenêtre de 3 secondes pour détecter les changements rapides
+  threshold: 3           # Nombre de changements pour entrer en mode rapide
+
+  # Sauvegardes forcées (garantie anti-perte)
+  max-changes-before-force-save: 8    # Force une sauvegarde après 8 changements
+  max-delay-before-force-save: 3000   # Force une sauvegarde après 3 secondes max (réduit)
+
+  # Délais de sauvegarde ultra-rapides PAR DÉFAUT
+  rapid-mode-delay: 50     # 50ms (1 tick) entre sauvegardes en mode rapide
+  normal-mode-delay: 100   # 100ms (2 ticks) en mode normal - ULTRA RAPIDE PAR DÉFAUT
+
 database:
   type: "mongodb" # Ultra-high-performance NoSQL for massive concurrent operations
   mongodb:
@@ -132,5 +146,12 @@ debug:
 #       blockCompressor: zstd
 # net:
 #   maxIncomingConnections: 200
+  # === LOGGING POUR SYSTÈME DE CHANGEMENTS RAPIDES ===
+  log-rapid-mode: false        # Log quand un joueur entre/sort du mode rapide
+  log-rapid-saves: false       # Log les sauvegardes en mode rapide
+  log-normal-saves: false      # Log les sauvegardes normales
+  log-force-saves: true        # Log les sauvegardes forcées (recommandé)
+  log-autosave: false          # Log les sauvegardes automatiques
+
 # operationProfiling:
 #   mode: off

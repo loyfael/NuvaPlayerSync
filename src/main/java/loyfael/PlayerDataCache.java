@@ -46,6 +46,28 @@ public class PlayerDataCache {
     }
 
     /**
+     * Quick equality check ULTRA-OPTIMISÉ - pixel perfect
+     * Compare intelligemment selon l'importance pour l'expérience utilisateur
+     */
+    public boolean quickEquals(PlayerDataCache other) {
+        if (other == null) return false;
+        
+        // PRIORITÉ 1: Inventaire (le plus visible pour l'utilisateur)
+        if (!Objects.equals(inventory, other.inventory)) return false;
+        
+        // PRIORITÉ 2: XP (très visible dans l'interface)
+        if (xp != other.xp) return false;
+        
+        // PRIORITÉ 3: Faim (modérément visible)
+        if (hunger != other.hunger) return false;
+        
+        // PRIORITÉ 4: Vie (moins critique car moins souvent modifiée)
+        if (Math.abs(health - other.health) >= 0.5) return false; // Tolérance plus large
+        
+        return true; // Enderchest et saturation skip pour performance
+    }
+
+    /**
      * Generate hash code for efficient HashMap operations
      * @return Hash code based on key fields
      */

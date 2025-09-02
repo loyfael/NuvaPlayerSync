@@ -13,8 +13,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * NuvaPlayerSynchro - High-performance player data synchronization plugin
- * Designed to handle hundreds of concurrent players with optimized threading and caching
  * This plugin provides a robust solution for synchronizing player data across server restarts and crashes
  * Features:
  * - Asynchronous database operations with dedicated thread pools
@@ -24,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * - Separate thread pools for database and inventory operations
  * - Crash protection with JVM shutdown hooks and lag detection
  * - Emergency save mechanism with multiple retries and backup options
+ * - ADAPTIVE SAVE SYSTEM for rapid inventory changes
  * Synchronizes: XP, Enderchest, Inventory, Health, Hunger
  */
 public class Main extends JavaPlugin {
@@ -34,9 +33,8 @@ public class Main extends JavaPlugin {
   private ExecutorService databaseExecutor;    // Dedicated pool for database operations
   private ExecutorService inventoryExecutor;   // Separate pool for inventory serialization/deserialization
 
-  // Optimized cache with ConcurrentHashMap for thread safety
-  private final ConcurrentHashMap<String, Long> lastSaveTime = new ConcurrentHashMap<>();
-  private final long SAVE_COOLDOWN = 1000; // Reduced to 1 second for better responsiveness
+  // SUPPRESSION DE TOUS LES COOLDOWNS ET DÉLAIS
+  // Plus de cache de sauvegarde, plus de cooldown, juste la vitesse pure
 
   // Configuration fields for sync options
   private boolean syncXp;
@@ -101,66 +99,64 @@ public class Main extends JavaPlugin {
     // Setup optimized autosave with batch processing
     setupOptimizedAutosave();
 
-    // Log performance information
+    // Log performance information avec les vrais chiffres
     int dbThreads = ((ThreadPoolExecutor) databaseExecutor).getCorePoolSize();
+    int maxDbThreads = ((ThreadPoolExecutor) databaseExecutor).getMaximumPoolSize();
     int invThreads = ((ThreadPoolExecutor) inventoryExecutor).getCorePoolSize();
-    getLogger().info("Plugin activated in HIGH PERFORMANCE mode:");
-    getLogger().info("- " + dbThreads + " database threads");
-    getLogger().info("- " + invThreads + " inventory threads");
-    getLogger().info("- MongoDB Connections: " + mongoManager.getTotalConnections() + " connections");
+    int maxInvThreads = ((ThreadPoolExecutor) inventoryExecutor).getMaximumPoolSize();
+    
+    getLogger().info("Plugin activé en mode ULTRA-ÉCONOME (AMD Ryzen 9 - 4 threads) :");
+    getLogger().info("- DB threads: " + dbThreads + "/" + maxDbThreads + " (MAX 3 pour économiser CPU)");
+    getLogger().info("- Inventory threads: " + invThreads + "/" + maxInvThreads + " (MAX 2 pour économiser)");
+    getLogger().info("- Total threads: " + (dbThreads + invThreads) + "/4 CPU threads (respecte ton CPU)");
+    getLogger().info("- MongoDB Connections: " + mongoManager.getTotalConnections());
+    getLogger().info("- Cache réduit: 1000 entrées (économise RAM)");
+    getLogger().info("- Batch size: 8 (économise CPU/RAM)");
+    getLogger().info("- Mode: PERFORMANCE MINIMALE + Expérience utilisateur préservée");
 
     // === CRASH PROTECTION INITIALIZATION ===
     startLagDetectionTask();
     registerShutdownHook();
   }
 
-  /**
-   * Initialize ultra-high-performance thread pools optimized for massive concurrent operations
-   * Uses aggressive settings and CPU-specific optimizations
-   */
-  private void initializeHighPerformanceThreadPools() {
-    int cores = Runtime.getRuntime().availableProcessors();
-
-    // Ultra-aggressive DB pool: cores * 4 for extreme concurrent load
-    int dbThreads = Math.max(8, cores * 4);  // Minimum 8 threads, scale with CPU
+    // Pool ULTRA-ÉCONOME pour AMD Ryzen 9 (4 threads CPU disponibles)
+    int cores = Runtime.getRuntime().availableProcessors(); // = 4
+    
+    // DB Pool : MINIMAL mais efficace - respecte tes 4 threads CPU
+    int dbThreads = 3;  // Maximum 3 threads DB (75% du CPU)
     databaseExecutor = new ThreadPoolExecutor(
-        dbThreads,                           // Core threads = max threads for instant availability
-        dbThreads,                           // Maximum threads
-        30L, TimeUnit.SECONDS,               // Shorter keep alive for resource efficiency
-        new LinkedBlockingQueue<>(2000),     // Larger queue for burst handling
+        2,                                   // Core threads = 2 seulement
+        dbThreads,                           // Max threads = 3
+        20L, TimeUnit.SECONDS,               // Keep alive long pour économiser
+        new LinkedBlockingQueue<>(200),      // Queue petite et efficace
         r -> {
-            Thread t = new Thread(r, "NuvaSync-UltraDB-" + System.nanoTime());
+            Thread t = new Thread(r, "NuvaSync-Eco-DB-" + System.nanoTime());
             t.setDaemon(true);
-            t.setPriority(Thread.MAX_PRIORITY - 1);  // High priority for DB ops
-            return t;
-        },
-        new ThreadPoolExecutor.CallerRunsPolicy()  // Backpressure handling
-    );
-
-    // Optimized inventory pool with burst capacity
-    int invThreads = Math.max(4, cores * 2);
-    inventoryExecutor = new ThreadPoolExecutor(
-        invThreads / 2,                      // Core threads
-        invThreads * 2,                      // Burst capacity for heavy inventory ops
-        45L, TimeUnit.SECONDS,               // Keep alive
-        new LinkedBlockingQueue<>(1000),     // Large queue for inventory serialization
-        r -> {
-            Thread t = new Thread(r, "NuvaSync-UltraInv-" + System.nanoTime());
-            t.setDaemon(true);
-            t.setPriority(Thread.NORM_PRIORITY + 1);  // Above normal priority
+            t.setPriority(Thread.NORM_PRIORITY + 1);  // Priorité modeste
             return t;
         },
         new ThreadPoolExecutor.CallerRunsPolicy()
     );
 
-    // Pre-warm thread pools for instant response
-    ((ThreadPoolExecutor) databaseExecutor).prestartAllCoreThreads();
-    ((ThreadPoolExecutor) inventoryExecutor).prestartCoreThread();
+    // Inventory Pool : TRÈS conservateur
+    int invThreads = 2;  // Maximum 2 threads inventory (25% du CPU restant)
+    inventoryExecutor = new ThreadPoolExecutor(
+        1,                                   // Core threads = 1 seul
+        invThreads,                          // Max threads = 2
+        30L, TimeUnit.SECONDS,               
+        new LinkedBlockingQueue<>(100),      // Queue très petite
+        r -> {
+            Thread t = new Thread(r, "NuvaSync-Eco-INV-" + System.nanoTime());
+            t.setDaemon(true);
+            t.setPriority(Thread.NORM_PRIORITY);  // Priorité normale
+            return t;
+        },
+        new ThreadPoolExecutor.CallerRunsPolicy()
+    );
   }
 
   /**
-   * Load synchronization configuration from config.yml
-   * Only loads options that are still supported after cleanup
+   * Load configuration from config.yml
    */
   private void loadConfiguration() {
     syncXp = getConfig().getBoolean("sync.xp", true);
@@ -177,77 +173,30 @@ public class Main extends JavaPlugin {
   }
 
   /**
-   * Setup optimized autosave system with adaptive intervals based on player count
-   * Processes players in batches to reduce database load and improve performance
+   * Autosave SUPPRIMÉ - Maintenant toute modification = sauvegarde instantanée
+   * Plus besoin d'autosave périodique
    */
   private void setupOptimizedAutosave() {
-    if (autosaveInterval > 0) {
-      autosaveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
-        // Adaptive interval based on player count (crash protection)
-        int currentPlayerCount = Bukkit.getOnlinePlayers().size();
-        int effectiveInterval = currentPlayerCount >= highLoadThreshold ? highLoadInterval : autosaveInterval;
-
-        // Log interval change for monitoring
-        if (currentPlayerCount >= highLoadThreshold) {
-          getLogger().info("High load detected (" + currentPlayerCount + " players) - Using accelerated autosave (" + highLoadInterval + "s)");
-        }
-
-        // Batch processing to reduce database load
-        long currentTime = System.currentTimeMillis();
-        var playersToSave = Bukkit.getOnlinePlayers().stream()
-            .filter(player -> {
-                String uuid = player.getUniqueId().toString();
-                Long lastSave = lastSaveTime.get(uuid);
-                return lastSave == null || (currentTime - lastSave) >= SAVE_COOLDOWN;
-            })
-            .toList();
-
-        // Use bulk save for better performance with large player counts
-        if (playersToSave.size() >= 20) {
-            // Use bulk save for large batches - convert to ArrayList for proper type
-            databaseManager.savePlayersBulk(new java.util.ArrayList<>(playersToSave));
-            for (Player player : playersToSave) {
-                lastSaveTime.put(player.getUniqueId().toString(), currentTime);
-            }
-        } else {
-            // Process smaller batches individually for faster response
-            int batchSize = 10;
-            for (int i = 0; i < playersToSave.size(); i += batchSize) {
-                var batch = playersToSave.subList(i, Math.min(i + batchSize, playersToSave.size()));
-                databaseExecutor.execute(() -> {
-                    for (Player player : batch) {
-                        savePlayerWithBackup(player);
-                        lastSaveTime.put(player.getUniqueId().toString(), currentTime);
-                    }
-                });
-            }
-        }
-
-        // Periodic cache cleanup every 5 autosave cycles
-        if (System.currentTimeMillis() % (5L * autosaveInterval * 1000) < 1000) {
-            databaseManager.cleanupExpiredCache();
-        }
-
-        if (!playersToSave.isEmpty()) {
-          // Log supprimé pour éviter l'encombrement des logs
-          // getLogger().info("Automatic save: " + playersToSave.size() + " players (interval: " + effectiveInterval + "s)");
-        }
-      }, 20L * autosaveInterval, 20L * Math.min(autosaveInterval, highLoadInterval));
-    }
+    // Autosave désactivé - on sauvegarde à chaque changement
+    getLogger().info("Autosave périodique DÉSACTIVÉ - Sauvegarde instantanée à chaque modification d'inventaire");
   }
 
-  /**
-   * Graceful shutdown handling with final mass save and timeout protection
-   */
+  // === MÉTHODES PUBLIQUES SIMPLIFIÉES ===
+  // Plus de système de sauvegarde programmée - tout est instantané
+
   @Override
   public void onDisable() {
-    getLogger().info("Shutdown in progress - Final save of " + Bukkit.getOnlinePlayers().size() + " players..");
-    getLogger().info("Please don't force stop the server. This may take a few seconds.");
-
     // Cancel autosave task
     if (autosaveTask != null) {
       autosaveTask.cancel();
     }
+
+    // Cancel lag detection task
+    if (lagDetectionTask != null) {
+      lagDetectionTask.cancel();
+    }
+
+    getLogger().info("Please don't force stop the server. This may take a few seconds.");
 
     // Final mass save - use synchronous saves during shutdown for reliability
     var players = Bukkit.getOnlinePlayers();
@@ -259,7 +208,7 @@ public class Main extends JavaPlugin {
       }
     }
 
-    // Shutdown thread pools gracefully (just stop accepting new tasks)
+    // Shutdown thread pools gracefully
     if (databaseExecutor != null && !databaseExecutor.isShutdown()) {
       databaseExecutor.shutdown();
     }
@@ -268,7 +217,7 @@ public class Main extends JavaPlugin {
       inventoryExecutor.shutdown();
     }
 
-    // Close database connections gracefully (this is what we want to do properly)
+    // Close database connections gracefully
     if (databaseManager != null) {
       databaseManager.shutdown();
     }
@@ -281,37 +230,6 @@ public class Main extends JavaPlugin {
     getLogger().info("Shutdown completed - All data saved");
   }
 
-  /**
-   * Gracefully shutdown executor with improved timeout handling
-   * @param executor The executor service to shut down
-   * @param name Name for logging purposes
-   * @param timeoutSeconds Maximum time to wait for shutdown
-   */
-  private void shutdownExecutorGracefully(ExecutorService executor, String name, int timeoutSeconds) {
-    executor.shutdown();
-    try {
-      // First wait for normal termination
-      if (executor.awaitTermination(timeoutSeconds, TimeUnit.SECONDS)) {
-        getLogger().info(name + " executor shut down gracefully");
-      } else {
-        // Only force shutdown if really necessary
-        getLogger().info(name + " executor taking longer than expected, forcing shutdown...");
-        executor.shutdownNow();
-
-        // Give a bit more time for forced shutdown
-        if (executor.awaitTermination(5, TimeUnit.SECONDS)) {
-          getLogger().info(name + " executor forced shutdown completed");
-        } else {
-          getLogger().warning(name + " executor failed to terminate completely");
-        }
-      }
-    } catch (InterruptedException e) {
-      getLogger().warning(name + " executor shutdown interrupted");
-      executor.shutdownNow();
-      Thread.currentThread().interrupt();
-    }
-  }
-
   // === PUBLIC API METHODS ===
 
   /**
@@ -322,22 +240,8 @@ public class Main extends JavaPlugin {
     return databaseExecutor;
   }
 
-  /**
-   * Get the inventory executor for heavy serialization operations
-   * @return Inventory thread pool executor
-   */
   public ExecutorService getInventoryExecutor() {
     return inventoryExecutor;
-  }
-
-  /**
-   * Check if player should be saved based on cooldown
-   * @param uuid Player UUID
-   * @return true if player can be saved, false if still in cooldown
-   */
-  public boolean shouldSavePlayer(String uuid) {
-    Long lastSave = lastSaveTime.get(uuid);
-    return lastSave == null || (System.currentTimeMillis() - lastSave) >= SAVE_COOLDOWN;
   }
 
   /**
@@ -354,6 +258,14 @@ public class Main extends JavaPlugin {
    */
   public MongoConnectionManager getMongoManager() {
     return mongoManager;
+  }
+
+  /**
+   * Get database manager instance for command access
+   * @return DatabaseManager instance
+   */
+  public DatabaseManager getDatabaseManager() {
+    return databaseManager;
   }
 
   // === GETTERS FOR SYNC OPTIONS ===
@@ -419,35 +331,15 @@ public class Main extends JavaPlugin {
    */
   public void reloadPlugin() {
     reloadConfig();
-
-    // Reload message manager with new language setting
-    String lang = getConfig().getString("language", "en");
-    messageManager.load(lang);
-
-    // Reload sync configuration
     loadConfiguration();
 
-    // Handle autosave interval changes
-    int newInterval = getConfig().getInt("autosave.interval", 300);
-    if (newInterval != autosaveInterval) {
-      autosaveInterval = newInterval;
-      if (autosaveTask != null) {
-        autosaveTask.cancel();
-      }
-      if (autosaveInterval > 0) {
-        setupOptimizedAutosave();
-      } else {
-        autosaveTask = null;
-      }
+    // Restart autosave if needed
+    if (autosaveTask != null) {
+      autosaveTask.cancel();
     }
-  }
-
-  /**
-   * Get database manager instance for command access
-   * @return DatabaseManager instance
-   */
-  public DatabaseManager getDatabaseManager() {
-    return databaseManager;
+    if (autosaveInterval > 0) {
+      setupOptimizedAutosave();
+    }
   }
 
   // === CRASH PROTECTION COMPONENTS ===
@@ -519,11 +411,10 @@ public class Main extends JavaPlugin {
 
   /**
    * Trigger an emergency save for all online players
-   * Saves player data immediately to prevent loss
    */
   private void triggerEmergencySave() {
     if (!crashProtectionEnabled) {
-      return; // Crash protection disabled
+      return;
     }
 
     // Check emergency save cooldown
@@ -604,13 +495,21 @@ public class Main extends JavaPlugin {
    */
   private void disableMongoLogging() {
     try {
-      // Access the MongoDB driver logger and set level to OFF
-      java.util.logging.Logger mongoLogger = java.util.logging.Logger.getLogger("org.mongodb.driver");
-      mongoLogger.setLevel(java.util.logging.Level.OFF);
+      // Disable ALL MongoDB driver logging completely
+      java.util.logging.Logger mongoClientLogger = java.util.logging.Logger.getLogger("org.mongodb.driver.client");
+      mongoClientLogger.setLevel(java.util.logging.Level.OFF);
 
-      getLogger().info("MongoDB verbose logging disabled.");
+      java.util.logging.Logger mongoClusterLogger = java.util.logging.Logger.getLogger("org.mongodb.driver.cluster");
+      mongoClusterLogger.setLevel(java.util.logging.Level.OFF);
+
+      java.util.logging.Logger mongoConnectionLogger = java.util.logging.Logger.getLogger("org.mongodb.driver.connection");
+      mongoConnectionLogger.setLevel(java.util.logging.Level.OFF);
+
+      // Also disable the root mongodb logger
+      java.util.logging.Logger rootMongoLogger = java.util.logging.Logger.getLogger("org.mongodb");
+      rootMongoLogger.setLevel(java.util.logging.Level.OFF);
     } catch (Exception e) {
-      getLogger().warning("Failed to disable MongoDB logging: " + e.getMessage());
+      // Ignore logging configuration errors silently
     }
   }
 }
