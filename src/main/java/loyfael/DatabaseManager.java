@@ -36,10 +36,10 @@ public class DatabaseManager {
     private final AtomicLong cacheMisses = new AtomicLong(0);
     private final AtomicLong bulkOperations = new AtomicLong(0);
 
-    // Ultra-performance optimizations
+    // Optimisations ÉCONOMES pour 4 threads CPU - Performance minimale requise
     private static final String COLLECTION_NAME = "player_data";
-    private static final int BULK_WRITE_THRESHOLD = 25;  // Reduced for faster processing
-    private static final int MAX_CACHE_SIZE = 2000;     // Increased cache for better hit rate
+    private static final int BULK_WRITE_THRESHOLD = 8;   // Petit batch = moins de RAM/CPU
+    private static final int MAX_CACHE_SIZE = 1000;     // Cache réduit pour économiser RAM
 
     // Asynchronous batch processing
     private final ConcurrentLinkedQueue<WriteModel<Document>> pendingWrites = new ConcurrentLinkedQueue<>();
@@ -103,34 +103,57 @@ public class DatabaseManager {
     }
 
     /**
-     * Ultra-fast save with intelligent caching and batch processing
+     * Sauvegarde ultra-rapide avec vérification cache INTELLIGENTE
      */
     public void savePlayer(Player player) {
         totalOperations.incrementAndGet();
-
-        // Ultra-fast cooldown check
-        if (!plugin.shouldSavePlayer(player.getUniqueId().toString())) {
-            return;
-        }
 
         String uuid = player.getUniqueId().toString();
         PlayerDataCache currentData = extractor.extract(player);
         PlayerDataCache cachedData = cache.get(uuid);
 
-        // Optimized cache comparison
-        if (cachedData != null && cachedData.equals(currentData)) {
+        // Vérification cache RAPIDE - skip seulement si 100% identique
+        if (cachedData != null && cachedData.quickEquals(currentData)) {
             cacheHits.incrementAndGet();
-            return;
+            return; // Skip inutile mais garde la performance
         }
 
         cacheMisses.incrementAndGet();
-
-        // Intelligent cache management with LRU eviction
-        manageCacheSize();
         cache.put(uuid, currentData);
 
         // Add to batch processing queue for ultra-performance
         addToBatchQueue(currentData);
+    }
+
+    /**
+     * SAUVEGARDE SYNCHRONE ULTRA-PRIORITAIRE
+     * Utilisée pour les déconnexions - bypass complet du système de batch
+     * Garantit que la sauvegarde est terminée avant de continuer
+     */
+    public void savePlayerSync(Player player) {
+        totalOperations.incrementAndGet();
+
+        String uuid = player.getUniqueId().toString();
+        PlayerDataCache currentData = extractor.extract(player);
+
+        // Mettre à jour le cache immédiatement
+        cache.put(uuid, currentData);
+
+        try {
+            // Sauvegarde DIRECTE en base sans passer par le système de batch
+            MongoDatabase database = mongoManager.getDatabase();
+            MongoCollection<Document> collection = database.getCollection("player_data");
+            
+            Document playerDoc = createOptimizedDocument(currentData);
+            ReplaceOptions options = new ReplaceOptions().upsert(true);
+            
+            // OPÉRATION SYNCHRONE - attend la fin avant de retourner
+            collection.replaceOne(Filters.eq("uuid", uuid), playerDoc, options);
+            
+        } catch (Exception e) {
+            plugin.getLogger().severe("ÉCHEC SAUVEGARDE SYNCHRONE pour " + player.getName() + ": " + e.getMessage());
+            throw new RuntimeException("Sauvegarde synchrone échouée", e);
+        }
     }
 
     /**

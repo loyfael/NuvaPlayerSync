@@ -136,6 +136,12 @@ public class SyncCommand implements CommandExecutor {
         sender.sendMessage("§e" + plugin.getDatabaseManager().getConnectionPoolStats());
         sender.sendMessage("§eCache size: §f" + plugin.getDatabaseManager().getCacheSize() + " entries");
 
+        // === INFORMATIONS MODE LATENCE MINIMALE ===
+        sender.sendMessage("§6--- Mode Latence Minimale ---");
+        sender.sendMessage("§aToute modification d'inventaire = sauvegarde instantanée");
+        sender.sendMessage("§aAucun délai, aucun cooldown, aucune détection");
+        sender.sendMessage("§aOptimisé pour changements de serveur ultra-rapides");
+
         // Statistiques détaillées MongoDB
         if (plugin.getConfig().getBoolean("debug.show-detailed-stats", false)) {
             var mongoManager = getMongoManagerFromPlugin();
