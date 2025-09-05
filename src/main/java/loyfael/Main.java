@@ -119,6 +119,10 @@ public class Main extends JavaPlugin {
     registerShutdownHook();
   }
 
+  /**
+   * Initialize high-performance thread pools optimized for 4 CPU cores
+   */
+  private void initializeHighPerformanceThreadPools() {
     // Pool ULTRA-ÉCONOME pour AMD Ryzen 9 (4 threads CPU disponibles)
     int cores = Runtime.getRuntime().availableProcessors(); // = 4
     
@@ -128,14 +132,14 @@ public class Main extends JavaPlugin {
         2,                                   // Core threads = 2 seulement
         dbThreads,                           // Max threads = 3
         20L, TimeUnit.SECONDS,               // Keep alive long pour économiser
-        new LinkedBlockingQueue<>(200),      // Queue petite et efficace
+        new LinkedBlockingQueue<>(150),      // Queue RÉDUITE pour éviter l'accumulation RAM
         r -> {
             Thread t = new Thread(r, "NuvaSync-Eco-DB-" + System.nanoTime());
             t.setDaemon(true);
             t.setPriority(Thread.NORM_PRIORITY + 1);  // Priorité modeste
             return t;
         },
-        new ThreadPoolExecutor.CallerRunsPolicy()
+        new ThreadPoolExecutor.CallerRunsPolicy() // Si queue pleine = exécution directe
     );
 
     // Inventory Pool : TRÈS conservateur
@@ -144,14 +148,14 @@ public class Main extends JavaPlugin {
         1,                                   // Core threads = 1 seul
         invThreads,                          // Max threads = 2
         30L, TimeUnit.SECONDS,               
-        new LinkedBlockingQueue<>(100),      // Queue très petite
+        new LinkedBlockingQueue<>(75),       // Queue ENCORE PLUS PETITE pour éviter RAM overflow
         r -> {
             Thread t = new Thread(r, "NuvaSync-Eco-INV-" + System.nanoTime());
             t.setDaemon(true);
             t.setPriority(Thread.NORM_PRIORITY);  // Priorité normale
             return t;
         },
-        new ThreadPoolExecutor.CallerRunsPolicy()
+        new ThreadPoolExecutor.CallerRunsPolicy() // Protection overflow
     );
   }
 

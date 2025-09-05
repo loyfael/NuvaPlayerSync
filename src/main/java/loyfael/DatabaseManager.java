@@ -39,7 +39,7 @@ public class DatabaseManager {
     // Optimisations ÉCONOMES pour 4 threads CPU - Performance minimale requise
     private static final String COLLECTION_NAME = "player_data";
     private static final int BULK_WRITE_THRESHOLD = 8;   // Petit batch = moins de RAM/CPU
-    private static final int MAX_CACHE_SIZE = 1000;     // Cache réduit pour économiser RAM
+    private static final int MAX_CACHE_SIZE = 750;      // Cache RÉDUIT pour économiser encore plus de RAM
 
     // Asynchronous batch processing
     private final ConcurrentLinkedQueue<WriteModel<Document>> pendingWrites = new ConcurrentLinkedQueue<>();
@@ -103,7 +103,7 @@ public class DatabaseManager {
     }
 
     /**
-     * Sauvegarde ultra-rapide avec vérification cache INTELLIGENTE
+     * Sauvegarde ultra-rapide avec vérification cache INTELLIGENTE + protection RAM
      */
     public void savePlayer(Player player) {
         totalOperations.incrementAndGet();
@@ -117,6 +117,9 @@ public class DatabaseManager {
             cacheHits.incrementAndGet();
             return; // Skip inutile mais garde la performance
         }
+
+        // PROTECTION RAM : Nettoyage automatique du cache
+        manageCacheSize();
 
         cacheMisses.incrementAndGet();
         cache.put(uuid, currentData);
@@ -157,12 +160,12 @@ public class DatabaseManager {
     }
 
     /**
-     * Intelligent cache size management with LRU eviction
+     * Intelligent cache size management with LRU eviction - AGGRESSIF pour économiser RAM
      */
     private void manageCacheSize() {
         if (cache.size() >= MAX_CACHE_SIZE) {
-            // Remove 10% of oldest entries for performance
-            int toRemove = MAX_CACHE_SIZE / 10;
+            // Remove 15% of oldest entries for better RAM management
+            int toRemove = Math.max(MAX_CACHE_SIZE / 7, 10); // Minimum 10, sinon 15%
             cache.entrySet().stream()
                 .sorted(Comparator.comparingLong(entry -> entry.getValue().lastUpdated))
                 .limit(toRemove)
@@ -286,6 +289,49 @@ public class DatabaseManager {
      */
     public void loadPlayer(Player player) {
         plugin.getDatabaseExecutor().execute(() -> loadPlayerAsync(player));
+    }
+
+    /**
+     * CHARGEMENT SYNCHRONE ULTRA-PRIORITAIRE pour les connexions
+     * Bloque jusqu'à ce que les données soient complètement chargées
+     * Garantit que l'inventaire est synchronisé AVANT que le joueur puisse jouer
+     */
+    public void loadPlayerSync(Player player) {
+        String uuid = player.getUniqueId().toString();
+        totalOperations.incrementAndGet();
+
+        // Cache check d'abord
+        PlayerDataCache cached = cache.get(uuid);
+        if (cached != null && !cached.isExpired(30000)) {
+            cacheHits.incrementAndGet();
+            applier.apply(player, cached);
+            return;
+        }
+
+        cacheMisses.incrementAndGet();
+
+        try {
+            MongoDatabase database = mongoManager.getDatabase();
+            MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+            // REQUÊTE SYNCHRONE - attend le résultat
+            Document playerDoc = collection.find(Filters.eq("uuid", uuid)).first();
+
+            if (playerDoc != null) {
+                PlayerDataCache data = documentToCache(playerDoc, uuid);
+                cache.put(uuid, data);
+                applier.apply(player, data);
+                mongoManager.recordSuccess();
+            } else {
+                // Nouveau joueur - pas de données à charger
+                plugin.getLogger().info("Nouveau joueur détecté: " + player.getName());
+            }
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("ÉCHEC CHARGEMENT SYNCHRONE pour " + player.getName() + ": " + e.getMessage());
+            mongoManager.recordFailure();
+            throw new RuntimeException("Chargement synchrone échoué", e);
+        }
     }
 
     /**

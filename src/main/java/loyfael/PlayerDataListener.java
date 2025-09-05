@@ -39,20 +39,20 @@ public class PlayerDataListener implements Listener {
     Player player = event.getPlayer();
     String uuid = player.getUniqueId().toString();
 
-    // Anti-spam INTELLIGENT : 50ms seulement - protège contre les glitches mais imperceptible
-    Long lastJoin = this.joinCooldown.get(uuid);
-    long currentTime = System.currentTimeMillis();
-    if (lastJoin != null && (currentTime - lastJoin) < 50) {
-      return; // Protection minimale contre les bug de co/deco rapides
-    }
-    this.joinCooldown.put(uuid, currentTime);
+    // SUPPRESSION TOTALE de l'anti-spam - PRIORITÉ ABSOLUE à la synchronisation
+    // Plus aucun délai, chargement IMMÉDIAT et BLOQUANT
+    this.joinCooldown.put(uuid, System.currentTimeMillis());
 
-    // Chargement IMMÉDIAT - pas de délai du tout
-    plugin.getDatabaseExecutor().execute(() -> {
-      if (player.isOnline()) {
-        dbManager.loadPlayer(player);
-      }
-    });
+    // CHARGEMENT IMMÉDIAT et SYNCHRONE pour garantir que l'inventaire est là
+    // Le joueur ne pourra rien faire tant que ses données ne sont pas chargées
+    try {
+      dbManager.loadPlayerSync(player); // Nouveau: chargement synchrone
+      plugin.getLogger().info("✓ Données synchronisées pour " + player.getName() + " (INSTANTANÉ)");
+    } catch (Exception e) {
+      plugin.getLogger().severe("ÉCHEC CRITIQUE chargement " + player.getName() + ": " + e.getMessage());
+      // En cas d'échec, kick le joueur pour éviter la corruption
+      player.kickPlayer("§cErreur de synchronisation. Reconnectez-vous.");
+    }
   }
 
   @EventHandler(priority = EventPriority.HIGHEST)
@@ -112,30 +112,33 @@ public class PlayerDataListener implements Listener {
   }
 
   /**
-   * Sauvegarde INTELLIGENTE avec debounce - équilibre parfait
+   * Sauvegarde ULTRA-IMMÉDIATE avec protection RAM intelligente
+   * Évite le spam de tâches tout en gardant la réactivité maximale
    */
   private void savePlayerInstantly(Player player) {
     String uuid = player.getUniqueId().toString();
     long currentTime = System.currentTimeMillis();
     
-    // Debounce intelligent : 50ms entre les sauvegardes du même joueur
-    // Groupe automatiquement les clics rapides sans impacter l'UX
-    Long lastChange = lastInventoryChange.put(uuid, currentTime);
-    if (lastChange != null && (currentTime - lastChange) < 50) {
-      return; // Skip cette sauvegarde, la suivante dans 50ms prendra le relay
+    // PROTECTION RAM : évite le spam de tâches sans perdre la réactivité
+    Long lastChange = lastInventoryChange.get(uuid);
+    if (lastChange != null && (currentTime - lastChange) < 10) {
+      // Si < 10ms entre les actions : on écrase la dernière timestamp
+      // Ça évite de créer 100 tâches par seconde tout en restant ultra-réactif
+      lastInventoryChange.put(uuid, currentTime);
+      return;
     }
     
-    // Micro-délai de 1 tick pour grouper les actions en cours
-    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+    lastInventoryChange.put(uuid, currentTime);
+    
+    // SAUVEGARDE IMMÉDIATE - mais pas de spam de tâches
+    plugin.getDatabaseExecutor().execute(() -> {
       if (player.isOnline()) {
-        plugin.getDatabaseExecutor().execute(() -> {
-          try {
-            dbManager.savePlayer(player);
-          } catch (Exception e) {
-            plugin.getLogger().warning("Échec sauvegarde pour " + player.getName() + ": " + e.getMessage());
-          }
-        });
+        try {
+          dbManager.savePlayer(player);
+        } catch (Exception e) {
+          plugin.getLogger().warning("Échec sauvegarde pour " + player.getName() + ": " + e.getMessage());
+        }
       }
-    }, 1L);
+    });
   }
 }
