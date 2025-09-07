@@ -21,7 +21,15 @@ public class PlayerDataExtractor {
         PlayerDataCache data = new PlayerDataCache(player.getUniqueId().toString());
 
         // Données du joueur (seulement ce qui est synchronisé)
-        data.xp = plugin.isSyncXp() ? player.getTotalExperience() : 0;
+        if (plugin.isSyncXp()) {
+            data.xp = player.getTotalExperience();      // XP total
+            data.expLevel = player.getLevel();          // Niveau actuel
+            data.expProgress = player.getExp();         // Progression vers niveau suivant (0.0-1.0)
+        } else {
+            data.xp = 0;
+            data.expLevel = 0;
+            data.expProgress = 0.0f;
+        }
         data.health = plugin.isSyncHealth() ? player.getHealth() : 20.0;
         data.hunger = plugin.isSyncHunger() ? player.getFoodLevel() : 20;
         data.saturation = plugin.isSyncHunger() ? player.getSaturation() : 5.0f;

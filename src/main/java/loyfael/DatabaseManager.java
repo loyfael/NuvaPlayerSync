@@ -202,6 +202,8 @@ public class DatabaseManager {
     private Document createOptimizedDocument(PlayerDataCache data) {
         return new Document("uuid", data.uuid)
             .append("xp", data.xp)
+            .append("exp_level", data.expLevel)
+            .append("exp_progress", data.expProgress)
             .append("enderchest", data.enderchest)
             .append("inventory", data.inventory)
             .append("health", data.health)
@@ -391,6 +393,8 @@ public class DatabaseManager {
                     PlayerDataCache data = extractor.extract(player);
                     Document playerDoc = new Document("uuid", data.uuid)
                         .append("xp", data.xp)
+                        .append("exp_level", data.expLevel)
+                        .append("exp_progress", data.expProgress)
                         .append("enderchest", data.enderchest)
                         .append("inventory", data.inventory)
                         .append("health", data.health)
@@ -425,6 +429,9 @@ public class DatabaseManager {
     private PlayerDataCache documentToCache(Document doc, String uuid) {
         PlayerDataCache data = new PlayerDataCache(uuid);
         data.xp = doc.getInteger("xp", 0);
+        data.expLevel = doc.getInteger("exp_level", 0);
+        Double expProgressDouble = doc.getDouble("exp_progress");
+        data.expProgress = expProgressDouble != null ? expProgressDouble.floatValue() : 0.0f;
         data.enderchest = doc.getString("enderchest");
         data.inventory = doc.getString("inventory");
         data.health = doc.getDouble("health");

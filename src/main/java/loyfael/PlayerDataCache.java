@@ -16,6 +16,8 @@ public class PlayerDataCache {
     public double health;        // Player health value
     public float saturation;     // Player saturation level
     public int xp, hunger;      // Player XP and hunger levels
+    public int expLevel;         // Player experience level
+    public float expProgress;    // Progress towards next level (0.0-1.0)
     public long lastUpdated;    // Timestamp for cache expiration
 
     /**
@@ -38,6 +40,8 @@ public class PlayerDataCache {
         if (!(obj instanceof PlayerDataCache other)) return false;
 
         return xp == other.xp &&
+               expLevel == other.expLevel &&
+               Math.abs(expProgress - other.expProgress) < 0.01 &&
                Math.abs(health - other.health) < 0.1 &&
                hunger == other.hunger &&
                Math.abs(saturation - other.saturation) < 0.1 &&
@@ -55,8 +59,8 @@ public class PlayerDataCache {
         // PRIORITÉ 1: Inventaire (le plus visible pour l'utilisateur)
         if (!Objects.equals(inventory, other.inventory)) return false;
         
-        // PRIORITÉ 2: XP (très visible dans l'interface)
-        if (xp != other.xp) return false;
+        // PRIORITÉ 2: XP (très visible dans l'interface) - DONNÉES COMPLÈTES
+        if (xp != other.xp || expLevel != other.expLevel || Math.abs(expProgress - other.expProgress) >= 0.01) return false;
         
         // PRIORITÉ 3: Faim (modérément visible)
         if (hunger != other.hunger) return false;
