@@ -27,9 +27,11 @@ public class PlayerDataApplier {
     }
 
     private void applyPlayerStats(Player player, PlayerDataCache data) {
-        // XP
-        if (plugin.isSyncXp() && data.xp > 0) {
-            player.setTotalExperience(data.xp);
+        // XP - Application COMPLÈTE pour synchronisation parfaite
+        if (plugin.isSyncXp() && (data.xp > 0 || data.expLevel > 0)) {
+            player.setTotalExperience(data.xp);         // XP total d'abord
+            player.setLevel(data.expLevel);             // Puis niveau
+            player.setExp(data.expProgress);            // Enfin progression vers suivant
         }
 
         // Santé
