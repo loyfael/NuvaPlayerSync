@@ -1,4 +1,8 @@
-# NuvaPlayerSynchro
+# NuvaPlayerSynchro [DISCONTINUED]
+> [!WARNING]
+> **DISCONTINUED**
+> 
+> This plugin was meant to synchronize inventories, but it proved too unstable and difficult for me to maintain. I’ve therefore decided to discontinue it and focus instead on smaller, content-oriented plugins where I can deliver more stability.<br>
 
 [![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/loyfael/NuvaPlayerSynchro)
 [![Minecraft](https://img.shields.io/badge/minecraft-1.21.7-green.svg)](https://www.minecraft.net/)
@@ -8,7 +12,7 @@
 
 NuvaPlayerSynchro is designed to handle **thousands of concurrent players** with MongoDB's NoSQL performance, optimized threading, advanced caching, and comprehensive crash protection. Perfect for massive Minecraft networks requiring blazing-fast player data synchronization.
 
-> [!WARNING]
+> [!NOTE]
 > NuvaPlayerSynchro is designed for high-concurrency environments and is theoretically suitable for large Minecraft networks.
 > However, this plugin is **not yet ready for production use** and should preferably be used on **test or development servers**.
 > If you choose to use it in a production environment, it is entirely **at your own risk**.
