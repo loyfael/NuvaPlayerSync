@@ -1,6 +1,6 @@
 # NuvaPlayerSynchro
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/loyfael/NuvaPlayerSynchro)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/loyfael/NuvaPlayerSynchro)
 [![Minecraft](https://img.shields.io/badge/minecraft-1.21.7-green.svg)](https://www.minecraft.net/)
 [![License](https://img.shields.io/badge/license-AGPLv3-red.svg)](https://github.com/loyfael/NuvaPlayerSynchro/blob/master/LICENSE.txt)
 
